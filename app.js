@@ -12,9 +12,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAlEHrWqdDlyTd6MIgJxImw2CUcvCgv2io",
   authDomain: "drug-quote-app.firebaseapp.com",
   projectId: "drug-quote-app",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  storageBucket: "drug-quote-app.appspot.com",
 };
 
 const app = initializeApp(firebaseConfig);
