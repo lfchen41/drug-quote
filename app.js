@@ -12,8 +12,12 @@ const firebaseConfig = {
   apiKey: "AIzaSyAlEHrWqdDlyTd6MIgJxImw2CUcvCgv2io",
   authDomain: "drug-quote-app.firebaseapp.com",
   projectId: "drug-quote-app",
-  storageBucket: "drug-quote-app.appspot.com",
+  storageBucket: "drug-quote-app.firebasestorage.app",
+  messagingSenderId: "53239915592",
+  appId: "1:53239915592:web:d9d98e1ef13dadf307a47d",
+  measurementId: "G-66B9ZN9G13"
 };
+
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
