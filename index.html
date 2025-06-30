@@ -1,37 +1,316 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Drug Quotation Tool (Firebase Ready)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <title>Drug Quotation App</title>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 </head>
-<body class="bg-gray-100 p-4">
-  <div class="max-w-3xl mx-auto bg-white p-6 rounded shadow">
-    <h1 class="text-xl font-bold mb-4">Drug Quotation Tool</h1>
-    <div id="authSection" class="mb-6">
-      <input id="email" type="email" placeholder="Email" class="border p-2 rounded w-1/2 mb-2">
-      <input id="password" type="password" placeholder="Password" class="border p-2 rounded w-1/2 mb-2">
-      <div>
-        <button onclick="signIn()" class="bg-blue-600 text-white px-3 py-1 rounded">Sign In</button>
-        <button onclick="signUp()" class="bg-green-600 text-white px-3 py-1 rounded">Sign Up</button>
-      </div>
-    </div>
-    <div id="appSection" style="display:none">
-      <div class="mb-4">
-        <input id="productName" class="border p-2 rounded w-full mb-2" placeholder="Product Name">
-        <input id="dosage" class="border p-2 rounded w-full mb-2" placeholder="Dosage">
-        <input id="packaging" class="border p-2 rounded w-full mb-2" placeholder="Packaging">
-        <input id="shelfLife" class="border p-2 rounded w-full mb-2" placeholder="Shelf Life">
-        <input id="price" class="border p-2 rounded w-full mb-2" placeholder="Price (USD)">
-        <button onclick="addProduct()" class="bg-blue-600 text-white px-4 py-1 rounded">Add Product</button>
-      </div>
-      <h2 class="text-lg font-semibold mb-2">Products</h2>
-      <div id="productList" class="space-y-2"></div>
-    </div>
-  </div>
+<body class="p-4">
+  <div class="container">
+    <h2 class="mb-4">Drug Quotation App</h2>
 
-  <script type="module" src="./app.js"></script>
+    <!-- Authentication UI -->
+    <div id="auth-section" class="mb-4">
+      <input type="email" id="email" placeholder="Email" class="form-control mb-2">
+      <input type="password" id="password" placeholder="Password" class="form-control mb-2">
+      <button class="btn btn-primary" onclick="signUp()">Sign Up</button>
+      <button class="btn btn-secondary" onclick="signIn()">Sign In</button>
+    </div>
+
+    <!-- App Section -->
+    <div id="app-section" style="display:none">
+      <!-- Quotation Generator -->
+      <h4 class="mt-4">Quotation Generator</h4>
+      <div class="row g-2 mb-3">
+        <div class="col-md-4">
+          <select id="quote-customer" class="form-select">
+            <option value="">Select Customer</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <select multiple id="quote-products" class="form-select" size="5"></select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-outline-primary w-100" onclick="generateQuote()">Generate</button>
+        </div>
+      </div>
+      <div class="mb-3">
+        <textarea id="quote-result" class="form-control" rows="10" placeholder="Quotation preview..."></textarea>
+        <button class="btn btn-secondary mt-2" onclick="copyQuote()">Copy to Clipboard</button>
+      </div>
+
+      <hr class="my-4">
+
+      <!-- Customers Section -->
+      <h4>Add or Edit Customer</h4>
+      <div class="row g-2 mb-3">
+        <div class="col-md-4">
+          <input type="text" id="customerName" placeholder="Customer Name" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <input type="text" id="customerContact" placeholder="Contact Info" class="form-control">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-success w-100" onclick="addOrUpdateCustomer()" id="customer-submit-button">Add</button>
+        </div>
+      </div>
+      <input type="hidden" id="edit-customer-id">
+
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Customer</th><th>Contact</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="customer-list"></tbody>
+      </table>
+
+      <hr class="my-4">
+      <!-- Products Section -->
+      <h4>Add or Edit Product</h4>
+      <div class="row g-2 mb-2">
+        <div class="col-md-3">
+          <input type="text" id="productName" placeholder="Product Name" class="form-control">
+        </div>
+        <div class="col-md-2">
+          <input type="text" id="packaging" placeholder="Packaging" class="form-control">
+        </div>
+        <div class="col-md-2">
+          <input type="text" id="shelfLife" placeholder="Shelf Life" class="form-control">
+        </div>
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-md-2">
+          <input type="number" id="cost" placeholder="Cost ($)" class="form-control" step="0.01">
+        </div>
+        <div class="col-md-2">
+          <input type="number" id="markup" placeholder="Markup (%)" class="form-control" step="1">
+        </div>
+        <div class="col-md-2">
+          <input type="number" id="price" placeholder="Sale Price ($)" class="form-control" step="0.01">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-success w-100" onclick="addOrUpdateProduct()" id="product-submit-button">Add</button>
+        </div>
+      </div>
+      <input type="hidden" id="edit-product-id">
+
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Product</th><th>Packaging</th><th>Shelf Life</th><th>Cost</th><th>Markup</th><th>Price</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="product-list"></tbody>
+      </table>
+      <!-- Mass Product Upload -->
+      <hr class="my-4">
+      <h4>Mass Product Upload (CSV)</h4>
+      <div class="mb-3">
+        <input type="file" id="csv-upload" accept=".csv" class="form-control">
+      </div>
+      <button class="btn btn-outline-primary" onclick="uploadCSV()">Upload CSV</button>
+      <div class="form-text mt-2">
+        CSV format: <code>name,packaging,shelfLife,cost,markup,price</code>
+      </div>
+    </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAlEHrWqdDlyTd6MIgJxImw2CUcvCgv2io",
+      authDomain: "drug-quote-app.firebaseapp.com",
+      projectId: "drug-quote-app",
+      storageBucket: "drug-quote-app.appspot.com",
+      messagingSenderId: "53239915592",
+      appId: "1:53239915592:web:d9d98e1ef13dadf307a47d"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const UID_ALLOWED = "8rxZVxHrfbT1bmAYXu083h775ND2";
+
+    let customerMap = {}, productMap = {};
+
+    auth.onAuthStateChanged(user => {
+      if (user && user.uid === UID_ALLOWED) {
+        document.getElementById("auth-section").style.display = "none";
+        document.getElementById("app-section").style.display = "block";
+        loadCustomers();
+        loadProducts();
+      } else {
+        document.getElementById("auth-section").style.display = "block";
+        document.getElementById("app-section").style.display = "none";
+      }
+    });
+
+    function signUp() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      auth.createUserWithEmailAndPassword(email, password).catch(alert);
+    }
+    function signIn() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      auth.signInWithEmailAndPassword(email, password).catch(alert);
+    }
+
+    function loadCustomers() {
+      db.collection("customers").orderBy("name").onSnapshot(snapshot => {
+        const select = document.getElementById("quote-customer");
+        select.innerHTML = '<option value="">Select Customer</option>';
+        customerMap = {};
+        snapshot.forEach(doc => {
+          const c = doc.data();
+          customerMap[doc.id] = c;
+          const opt = document.createElement("option");
+          opt.value = doc.id;
+          opt.textContent = c.name;
+          select.appendChild(opt);
+        });
+        renderCustomerList(snapshot);
+      });
+    }
+
+    function renderCustomerList(snapshot) {
+      const list = document.getElementById("customer-list");
+      list.innerHTML = "";
+      snapshot.forEach(doc => {
+        const c = doc.data();
+        const row = `<tr><td>${c.name}</td><td>${c.contact}</td><td><button class='btn btn-sm btn-warning' onclick='editCustomer("${doc.id}", ${JSON.stringify(c)})'>Edit</button></td></tr>`;
+        list.innerHTML += row;
+      });
+    }
+
+    function addOrUpdateCustomer() {
+      const name = document.getElementById("customerName").value;
+      const contact = document.getElementById("customerContact").value;
+      const id = document.getElementById("edit-customer-id").value;
+      if (!name) return alert("Customer name required.");
+      const data = { name, contact };
+      if (id) db.collection("customers").doc(id).update(data).then(resetCustomerForm);
+      else db.collection("customers").add(data).then(resetCustomerForm);
+    }
+
+    function editCustomer(id, data) {
+      document.getElementById("edit-customer-id").value = id;
+      document.getElementById("customerName").value = data.name;
+      document.getElementById("customerContact").value = data.contact;
+      document.getElementById("customer-submit-button").innerText = "Update";
+    }
+
+    function resetCustomerForm() {
+      document.getElementById("edit-customer-id").value = "";
+      document.getElementById("customerName").value = "";
+      document.getElementById("customerContact").value = "";
+      document.getElementById("customer-submit-button").innerText = "Add";
+    }
+
+    function loadProducts() {
+      db.collection("products").orderBy("name").onSnapshot(snapshot => {
+        const select = document.getElementById("quote-products");
+        select.innerHTML = "";
+        productMap = {};
+        snapshot.forEach(doc => {
+          const p = doc.data();
+          productMap[doc.id] = p;
+          const opt = document.createElement("option");
+          opt.value = doc.id;
+          opt.textContent = p.name;
+          select.appendChild(opt);
+        });
+        renderProductList(snapshot);
+      });
+    }
+
+    function renderProductList(snapshot) {
+      const list = document.getElementById("product-list");
+      list.innerHTML = "";
+      snapshot.forEach(doc => {
+        const p = doc.data();
+        const row = `<tr><td>${p.name}</td><td>${p.packaging}</td><td>${p.shelfLife}</td><td>$${p.cost.toFixed(2)}</td><td>${p.markup ?? "-"}</td><td>$${p.price.toFixed(2)}</td><td><button class='btn btn-sm btn-warning' onclick='editProduct("${doc.id}", ${JSON.stringify(p)})'>Edit</button></td></tr>`;
+        list.innerHTML += row;
+      });
+    }
+
+    function addOrUpdateProduct() {
+      const name = document.getElementById("productName").value;
+      const packaging = document.getElementById("packaging").value;
+      const shelfLife = document.getElementById("shelfLife").value;
+      const cost = parseFloat(document.getElementById("cost").value);
+      const markup = parseFloat(document.getElementById("markup").value);
+      let price = parseFloat(document.getElementById("price").value);
+      const editId = document.getElementById("edit-product-id").value;
+      if (!name || isNaN(cost)) return alert("Product name and cost are required.");
+      if (isNaN(price) && !isNaN(markup)) price = cost + (cost * markup / 100);
+      if (price < cost) return alert("Price must not be below cost.");
+      const data = { name, packaging, shelfLife, cost, markup: isNaN(markup) ? null : markup, price };
+      if (editId) db.collection("products").doc(editId).update(data).then(resetProductForm);
+      else db.collection("products").add(data).then(resetProductForm);
+    }
+
+    function editProduct(id, data) {
+      document.getElementById("edit-product-id").value = id;
+      document.getElementById("productName").value = data.name;
+      document.getElementById("packaging").value = data.packaging;
+      document.getElementById("shelfLife").value = data.shelfLife;
+      document.getElementById("cost").value = data.cost;
+      document.getElementById("markup").value = data.markup ?? "";
+      document.getElementById("price").value = data.price;
+      document.getElementById("product-submit-button").innerText = "Update";
+    }
+
+    function resetProductForm() {
+      document.getElementById("edit-product-id").value = "";
+      ["productName", "packaging", "shelfLife", "cost", "markup", "price"].forEach(id => document.getElementById(id).value = "");
+      document.getElementById("product-submit-button").innerText = "Add";
+    }
+
+    function generateQuote() {
+      const customerId = document.getElementById("quote-customer").value;
+      const selectedProductIds = Array.from(document.getElementById("quote-products").selectedOptions).map(o => o.value);
+      if (!customerId || selectedProductIds.length === 0) return alert("Select a customer and at least one product.");
+      const customer = customerMap[customerId];
+      const products = selectedProductIds.map(id => productMap[id]);
+      let text = `Quotation for ${customer.name}\n${customer.contact ? 'Contact: ' + customer.contact + '\n' : ''}\nProducts:\n\n`;
+      products.forEach((p, i) => {
+        text += `${i + 1}. ${p.name}\n   Packaging: ${p.packaging || "-"}\n   Shelf Life: ${p.shelfLife || "-"}\n   Price: $${p.price.toFixed(2)}\n\n`;
+      });
+      document.getElementById("quote-result").value = text.trim();
+    }
+
+    function copyQuote() {
+      const text = document.getElementById("quote-result").value;
+      navigator.clipboard.writeText(text).then(() => alert("Copied to clipboard"));
+    }
+
+    function uploadCSV() {
+        const file = document.getElementById("csv-upload").files[0];
+        if (!file) return alert("Please select a CSV file.");
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const lines = e.target.result.split("\n").filter(line => line.trim());
+          const batch = firebase.firestore().batch();
+          lines.forEach(line => {
+            const [name, packaging, shelfLife, costStr, markupStr, priceStr] = line.split(',').map(s => s.trim());
+            if (!name || isNaN(parseFloat(costStr)) || isNaN(parseFloat(priceStr))) return;
+            const ref = db.collection("products").doc();
+            batch.set(ref, {
+              name,
+              packaging,
+              shelfLife,
+              cost: parseFloat(costStr),
+              markup: markupStr ? parseFloat(markupStr) : null,
+              price: parseFloat(priceStr)
+            });
+          });
+          batch.commit().then(() => alert("Products uploaded successfully!"));
+        };
+        reader.readAsText(file);
+      }
+  </script>
 </body>
 </html>
