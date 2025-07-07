@@ -1,125 +1,268 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8" />
+  <title>Drug Quotation System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Drug Quotation App</title>
-  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
-<body class="p-4">
-  <div class="container">
-    <h2 class="mb-4">Drug Quotation App</h2>
-
-    <!-- Authentication UI -->
-    <div id="auth-section" class="mb-4">
-      <input type="email" id="email" placeholder="Email" class="form-control mb-2">
-      <input type="password" id="password" placeholder="Password" class="form-control mb-2">
-      <button class="btn btn-primary" onclick="signUp()">Sign Up</button>
-      <button class="btn btn-secondary" onclick="signIn()">Sign In</button>
-    </div>
-
-    <!-- App Section -->
-    <div id="app-section" style="display:none">
-      <!-- Quotation Generator -->
-      <h4 class="mt-4">Quotation Generator</h4>
-      <div class="row g-2 mb-3">
-        <div class="col-md-4">
-          <select id="quote-customer" class="form-select">
-            <option value="">Select Customer</option>
-          </select>
+<body class="bg-gray-100 min-h-screen">
+  <!-- Header -->
+  <header class="bg-blue-800 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3">
+      <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold">Drug Quotation System</h1>
+        <div id="userInfo" class="text-sm" style="display:none">
+          <span id="userEmail"></span>
+          <button onclick="signOut()" class="ml-4 bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">Sign Out</button>
         </div>
-        <div class="col-md-6">
-          <select multiple id="quote-products" class="form-select" size="5"></select>
-        </div>
-        <div class="col-md-2">
-          <button class="btn btn-outline-primary w-100" onclick="generateQuote()">Generate</button>
-        </div>
-      </div>
-      <div class="mb-3">
-        <textarea id="quote-result" class="form-control" rows="10" placeholder="Quotation preview..."></textarea>
-        <button class="btn btn-secondary mt-2" onclick="copyQuote()">Copy to Clipboard</button>
-      </div>
-
-      <hr class="my-4">
-
-      <!-- Customers Section -->
-      <h4>Add or Edit Customer</h4>
-      <div class="row g-2 mb-3">
-        <div class="col-md-4">
-          <input type="text" id="customerName" placeholder="Customer Name" class="form-control">
-        </div>
-        <div class="col-md-3">
-          <input type="text" id="customerContact" placeholder="Contact Info" class="form-control">
-        </div>
-        <div class="col-md-2">
-          <button class="btn btn-success w-100" onclick="addOrUpdateCustomer()" id="customer-submit-button">Add</button>
-        </div>
-      </div>
-      <input type="hidden" id="edit-customer-id">
-
-      <table class="table table-bordered">
-        <thead>
-          <tr>
-            <th>Customer</th><th>Contact</th><th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="customer-list"></tbody>
-      </table>
-
-      <hr class="my-4">
-      <!-- Products Section -->
-      <h4>Add or Edit Product</h4>
-      <div class="row g-2 mb-2">
-        <div class="col-md-3">
-          <input type="text" id="productName" placeholder="Product Name" class="form-control">
-        </div>
-        <div class="col-md-2">
-          <input type="text" id="packaging" placeholder="Packaging" class="form-control">
-        </div>
-        <div class="col-md-2">
-          <input type="text" id="shelfLife" placeholder="Shelf Life" class="form-control">
-        </div>
-      </div>
-      <div class="row g-2 mb-3">
-        <div class="col-md-2">
-          <input type="number" id="cost" placeholder="Cost ($)" class="form-control" step="0.01">
-        </div>
-        <div class="col-md-2">
-          <input type="number" id="markup" placeholder="Markup (%)" class="form-control" step="1">
-        </div>
-        <div class="col-md-2">
-          <input type="number" id="price" placeholder="Sale Price ($)" class="form-control" step="0.01">
-        </div>
-        <div class="col-md-2">
-          <button class="btn btn-success w-100" onclick="addOrUpdateProduct()" id="product-submit-button">Add</button>
-        </div>
-      </div>
-      <input type="hidden" id="edit-product-id">
-
-      <table class="table table-bordered">
-        <thead>
-          <tr>
-            <th>Product</th><th>Packaging</th><th>Shelf Life</th><th>Cost</th><th>Markup</th><th>Price</th><th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="product-list"></tbody>
-      </table>
-      <!-- Mass Product Upload -->
-      <hr class="my-4">
-      <h4>Mass Product Upload (CSV)</h4>
-      <div class="mb-3">
-        <input type="file" id="csv-upload" accept=".csv" class="form-control">
-      </div>
-      <button class="btn btn-outline-primary" onclick="uploadCSV()">Upload CSV</button>
-      <div class="form-text mt-2">
-        CSV format: <code>name,packaging,shelfLife,cost,markup,price</code>
       </div>
     </div>
+  </header>
+
+  <!-- Auth Section -->
+  <div id="authSection" class="max-w-md mx-auto mt-20 bg-white p-6 rounded-lg shadow-lg">
+    <h2 class="text-xl font-semibold mb-4 text-center">Sign In</h2>
+    <div class="space-y-3">
+      <input id="email" type="email" placeholder="Email" class="border p-3 rounded w-full">
+      <input id="password" type="password" placeholder="Password" class="border p-3 rounded w-full">
+      <button onclick="signIn()" class="bg-blue-600 text-white px-4 py-2 rounded w-full hover:bg-blue-700">Sign In</button>
+    </div>
+    <div id="authStatus" class="mt-3 text-sm text-red-600 text-center"></div>
+  </div>
+
+  <!-- Main App -->
+  <div id="appSection" style="display:none">
+    <!-- Navigation Menu -->
+    <nav class="bg-white shadow-md">
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="flex space-x-8">
+          <button onclick="showPage('quotation')" class="nav-btn py-4 px-2 border-b-2 border-transparent hover:border-blue-500 font-medium text-gray-700 hover:text-blue-600">
+            Generate Quotation
+          </button>
+          <button onclick="showPage('history')" class="nav-btn py-4 px-2 border-b-2 border-transparent hover:border-blue-500 font-medium text-gray-700 hover:text-blue-600">
+            Quotation History
+          </button>
+          <button onclick="showPage('products')" class="nav-btn py-4 px-2 border-b-2 border-transparent hover:border-blue-500 font-medium text-gray-700 hover:text-blue-600">
+            Products
+          </button>
+          <button onclick="showPage('customers')" class="nav-btn py-4 px-2 border-b-2 border-transparent hover:border-blue-500 font-medium text-gray-700 hover:text-blue-600">
+            Customers
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Content Area -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+      
+      <!-- Generate Quotation Page -->
+      <div id="quotationPage" class="page-content">
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-2xl font-bold mb-6 text-gray-800">Generate Quotation</h2>
+          
+          <!-- Customer Selection -->
+          <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+            <h3 class="text-lg font-semibold mb-3">Customer Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <select id="customerSelect" class="border p-2 rounded w-full">
+                <option value="">Select Customer</option>
+              </select>
+              <input id="quotationDate" type="date" class="border p-2 rounded w-full">
+            </div>
+          </div>
+
+          <!-- Product Selection -->
+          <div class="mb-6 p-4 bg-green-50 rounded-lg">
+            <h3 class="text-lg font-semibold mb-3">Add Products</h3>
+            <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+              <select id="productSelect" class="border p-2 rounded w-full">
+                <option value="">Select Product</option>
+              </select>
+              <input id="quantity" type="number" placeholder="Quantity" class="border p-2 rounded w-full" min="1" value="1">
+              <input id="markupInput" type="number" placeholder="Markup %" class="border p-2 rounded w-full" min="0" step="0.1">
+              <input id="itemPrice" type="number" placeholder="Price" class="border p-2 rounded w-full" min="0" step="0.01">
+              <button onclick="addToQuotation()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Add to Quotation</button>
+            </div>
+            <div id="selectedProductInfo" class="mt-3 p-3 bg-white rounded border" style="display:none;">
+              <div class="grid grid-cols-1 md:grid-cols-6 gap-2 text-sm">
+                <div><strong>Description:</strong> <span id="infoDescription"></span></div>
+                <div><strong>Manufacturer:</strong> <span id="infoManufacturer"></span></div>
+                <div><strong>Form:</strong> <span id="infoForm"></span></div>
+                <div><strong>Strength:</strong> <span id="infoStrength"></span></div>
+                <div><strong>Size:</strong> <span id="infoSize"></span></div>
+                <div><strong>Cost:</strong> <span id="infoCost"></span></div>
+              </div>
+              <div class="mt-2 text-xs text-gray-500">
+                Enter markup % or price. If both are entered, price will be used. Price cannot be below cost.
+              </div>
+            </div>
+          </div>
+
+          <!-- Quotation Items -->
+          <div class="mb-6">
+            <h3 class="text-lg font-semibold mb-3">Quotation Items</h3>
+            <div id="quotationItems" class="space-y-2"></div>
+            <div class="mt-4 p-4 bg-gray-50 rounded">
+              <div class="text-right">
+                <span class="text-xl font-bold text-blue-600">Total: $<span id="quotationTotal">0.00</span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex space-x-4">
+            <button onclick="saveQuotation()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Save Quotation</button>
+            <button onclick="clearQuotation()" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Clear</button>
+            <button onclick="copyQuotationToClipboard()" class="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700">Copy to Clipboard</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quotation History Page -->
+      <div id="historyPage" class="page-content" style="display:none">
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-2xl font-bold mb-6 text-gray-800">Quotation History</h2>
+          
+          <!-- Search and Filter -->
+          <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <input id="historySearch" placeholder="Search by customer or quotation number..." class="border p-2 rounded w-full">
+              <select id="historyDateFilter" class="border p-2 rounded w-full">
+                <option value="">All Dates</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+              </select>
+              <button onclick="loadQuotationHistory()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Refresh</button>
+            </div>
+          </div>
+
+          <!-- History List -->
+          <div id="historyList" class="space-y-4"></div>
+        </div>
+      </div>
+
+      <!-- Products Page -->
+      <div id="productsPage" class="page-content" style="display:none">
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-2xl font-bold mb-6 text-gray-800">Products Management</h2>
+          
+          <!-- Add Product Form -->
+          <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+            <h3 class="text-lg font-semibold mb-3">Add New Product</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <input id="din" class="border p-2 rounded w-full" placeholder="DIN">
+              <input id="productDescription" class="border p-2 rounded w-full" placeholder="Product Description">
+              <input id="manufacturer" class="border p-2 rounded w-full" placeholder="Manufacturer">
+              <input id="form" class="border p-2 rounded w-full" placeholder="Form">
+              <input id="strength" class="border p-2 rounded w-full" placeholder="Strength">
+              <input id="size" class="border p-2 rounded w-full" placeholder="Size">
+              <input id="cost" class="border p-2 rounded w-full" placeholder="Cost" type="number" step="0.01">
+              <select id="currency" class="border p-2 rounded w-full">
+                <option value="USD">USD</option>
+                <option value="CAD">CAD</option>
+                <option value="EUR">EUR</option>
+              </select>
+              <input id="spcMonograph" class="border p-2 rounded w-full" placeholder="SPC/Monograph">
+            </div>
+            <div class="mt-3">
+              <button onclick="addProduct()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add Product</button>
+            </div>
+          </div>
+
+          <!-- Bulk Upload Section -->
+          <div class="mb-6 p-4 bg-green-50 rounded-lg">
+            <h3 class="text-lg font-semibold mb-3">Bulk Upload Products</h3>
+            <div class="mb-3">
+              <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="border p-2 rounded w-full bg-white">
+              <button onclick="uploadFile()" class="bg-green-600 text-white px-4 py-2 rounded mt-2 hover:bg-green-700">Upload File</button>
+            </div>
+            <div class="text-sm text-gray-600">
+              <p><strong>Expected columns:</strong> DIN, Product Description, Manufacturer, Form, Strength, Size, Cost, Currency, SPC/Monograph</p>
+            </div>
+          </div>
+
+          <!-- Search Section -->
+          <div class="mb-6 p-4 bg-yellow-50 rounded-lg">
+            <h3 class="text-lg font-semibold mb-3">Search Products</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input id="searchInput" class="border p-2 rounded w-full" placeholder="Search by DIN, description, manufacturer...">
+              <select id="sortBy" class="border p-2 rounded w-full">
+                <option value="">Sort by...</option>
+                <option value="din">DIN</option>
+                <option value="productDescription">Product Description</option>
+                <option value="manufacturer">Manufacturer</option>
+                <option value="cost">Cost</option>
+              </select>
+              <select id="filterCurrency" class="border p-2 rounded w-full">
+                <option value="">All Currencies</option>
+                <option value="USD">USD</option>
+                <option value="CAD">CAD</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+            <div class="mt-3">
+              <button onclick="clearSearch()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Clear Search</button>
+              <button onclick="exportToCSV()" class="bg-purple-600 text-white px-4 py-2 rounded ml-2 hover:bg-purple-700">Export to CSV</button>
+            </div>
+          </div>
+
+          <!-- Products List -->
+          <div class="mb-4">
+            <h3 class="text-lg font-semibold mb-3">Products (<span id="productCount">0</span>)</h3>
+            <div id="productList" class="space-y-2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customers Page -->
+      <div id="customersPage" class="page-content" style="display:none">
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-2xl font-bold mb-6 text-gray-800">Customers Management</h2>
+          
+          <!-- Add Customer Form -->
+          <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+            <h3 class="text-lg font-semibold mb-3">Add New Customer</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input id="customerName" class="border p-2 rounded w-full" placeholder="Customer Name">
+              <input id="contactPerson" class="border p-2 rounded w-full" placeholder="Contact Person">
+              <input id="customerEmail" class="border p-2 rounded w-full" placeholder="Email">
+              <input id="phone" class="border p-2 rounded w-full" placeholder="Phone">
+              <textarea id="address" class="border p-2 rounded w-full col-span-2" placeholder="Address" rows="3"></textarea>
+            </div>
+            <div class="mt-3">
+              <button onclick="addCustomer()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add Customer</button>
+            </div>
+          </div>
+
+          <!-- Search Customers -->
+          <div class="mb-6 p-4 bg-yellow-50 rounded-lg">
+            <h3 class="text-lg font-semibold mb-3">Search Customers</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input id="customerSearch" class="border p-2 rounded w-full" placeholder="Search by name, email, or phone...">
+              <button onclick="clearCustomerSearch()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Clear Search</button>
+            </div>
+          </div>
+
+          <!-- Customers List -->
+          <div class="mb-4">
+            <h3 class="text-lg font-semibold mb-3">Customers (<span id="customerCount">0</span>)</h3>
+            <div id="customerList" class="space-y-2"></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
 
   <script>
+    // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyAlEHrWqdDlyTd6MIgJxImw2CUcvCgv2io",
       authDomain: "drug-quote-app.firebaseapp.com",
@@ -128,189 +271,881 @@
       messagingSenderId: "53239915592",
       appId: "1:53239915592:web:d9d98e1ef13dadf307a47d"
     };
+
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
     const UID_ALLOWED = "8rxZVxHrfbT1bmAYXu083h775ND2";
 
-    let customerMap = {}, productMap = {};
+    // Global variables
+    let currentUser = null;
+    let products = [];
+    let customers = [];
+    let quotations = [];
+    let currentQuotation = [];
+    let currentPage = 'quotation';
 
-    auth.onAuthStateChanged(user => {
+    // Authentication state observer
+    auth.onAuthStateChanged((user) => {
       if (user && user.uid === UID_ALLOWED) {
-        document.getElementById("auth-section").style.display = "none";
-        document.getElementById("app-section").style.display = "block";
-        loadCustomers();
-        loadProducts();
+        currentUser = user;
+        document.getElementById('authSection').style.display = 'none';
+        document.getElementById('appSection').style.display = 'block';
+        document.getElementById('userEmail').textContent = user.email;
+        document.getElementById('userInfo').style.display = 'block';
+        initializeApp();
       } else {
-        document.getElementById("auth-section").style.display = "block";
-        document.getElementById("app-section").style.display = "none";
+        currentUser = null;
+        document.getElementById('authSection').style.display = 'block';
+        document.getElementById('appSection').style.display = 'none';
+        document.getElementById('userInfo').style.display = 'none';
+        if (user && user.uid !== UID_ALLOWED) {
+          alert('Access denied. You are not authorized to use this application.');
+          signOut();
+        }
       }
     });
 
-    function signUp() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      auth.createUserWithEmailAndPassword(email, password).catch(alert);
+    // Initialize app data
+    function initializeApp() {
+      loadProducts();
+      loadCustomers();
+      loadQuotationHistory();
+      showPage('quotation');
+      
+      // Set default date
+      document.getElementById('quotationDate').valueAsDate = new Date();
     }
+
+    // Page navigation
+    function showPage(pageId) {
+      // Hide all pages
+      document.querySelectorAll('.page-content').forEach(page => {
+        page.style.display = 'none';
+      });
+      
+      // Remove active class from all nav buttons
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('border-blue-500', 'text-blue-600');
+        btn.classList.add('border-transparent', 'text-gray-700');
+      });
+      
+      // Show selected page
+      document.getElementById(pageId + 'Page').style.display = 'block';
+      
+      // Add active class to current nav button
+      event.target.classList.remove('border-transparent', 'text-gray-700');
+      event.target.classList.add('border-blue-500', 'text-blue-600');
+      
+      currentPage = pageId;
+    }
+
+    // Authentication functions
     function signIn() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      auth.signInWithEmailAndPassword(email, password).catch(alert);
-    }
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        document.getElementById('authStatus').textContent = 'Please enter both email and password';
+        return;
+      }
 
-    function loadCustomers() {
-      db.collection("customers").orderBy("name").onSnapshot(snapshot => {
-        const select = document.getElementById("quote-customer");
-        select.innerHTML = '<option value="">Select Customer</option>';
-        customerMap = {};
-        snapshot.forEach(doc => {
-          const c = doc.data();
-          customerMap[doc.id] = c;
-          const opt = document.createElement("option");
-          opt.value = doc.id;
-          opt.textContent = c.name;
-          select.appendChild(opt);
+      auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          if (userCredential.user.uid !== UID_ALLOWED) {
+            document.getElementById('authStatus').textContent = 'Access denied. You are not authorized to use this application.';
+            signOut();
+          }
+        })
+        .catch((error) => {
+          document.getElementById('authStatus').textContent = 'Sign in failed: ' + error.message;
         });
-        renderCustomerList(snapshot);
+    }
+
+    function signOut() {
+      auth.signOut().then(() => {
+        products = [];
+        customers = [];
+        quotations = [];
+        currentQuotation = [];
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+        document.getElementById('authStatus').textContent = '';
       });
     }
 
-    function renderCustomerList(snapshot) {
-      const list = document.getElementById("customer-list");
-      list.innerHTML = "";
-      snapshot.forEach(doc => {
-        const c = doc.data();
-        const row = `<tr><td>${c.name}</td><td>${c.contact}</td><td><button class='btn btn-sm btn-warning' onclick='editCustomer("${doc.id}", ${JSON.stringify(c)})'>Edit</button></td></tr>`;
-        list.innerHTML += row;
+    // Product management functions
+    function addProduct() {
+      if (!currentUser) return;
+
+      const din = document.getElementById('din').value;
+      const productDescription = document.getElementById('productDescription').value;
+      const manufacturer = document.getElementById('manufacturer').value;
+      const form = document.getElementById('form').value;
+      const strength = document.getElementById('strength').value;
+      const size = document.getElementById('size').value;
+      const cost = document.getElementById('cost').value;
+      const currency = document.getElementById('currency').value;
+      const spcMonograph = document.getElementById('spcMonograph').value;
+
+      if (!din || !productDescription || !manufacturer || !form || !strength || !size || !cost || !currency) {
+        alert('Please fill in all required fields');
+        return;
+      }
+
+      const product = {
+        din, productDescription, manufacturer, form, strength, size,
+        cost: parseFloat(cost), currency, spcMonograph,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      db.collection('products').add(product)
+        .then(() => {
+          clearProductForm();
+          loadProducts();
+          alert('Product added successfully!');
+        })
+        .catch((error) => {
+          alert('Error adding product: ' + error.message);
+        });
+    }
+
+    function clearProductForm() {
+      ['din', 'productDescription', 'manufacturer', 'form', 'strength', 'size', 'cost', 'spcMonograph'].forEach(id => {
+        document.getElementById(id).value = '';
       });
-    }
-
-    function addOrUpdateCustomer() {
-      const name = document.getElementById("customerName").value;
-      const contact = document.getElementById("customerContact").value;
-      const id = document.getElementById("edit-customer-id").value;
-      if (!name) return alert("Customer name required.");
-      const data = { name, contact };
-      if (id) db.collection("customers").doc(id).update(data).then(resetCustomerForm);
-      else db.collection("customers").add(data).then(resetCustomerForm);
-    }
-
-    function editCustomer(id, data) {
-      document.getElementById("edit-customer-id").value = id;
-      document.getElementById("customerName").value = data.name;
-      document.getElementById("customerContact").value = data.contact;
-      document.getElementById("customer-submit-button").innerText = "Update";
-    }
-
-    function resetCustomerForm() {
-      document.getElementById("edit-customer-id").value = "";
-      document.getElementById("customerName").value = "";
-      document.getElementById("customerContact").value = "";
-      document.getElementById("customer-submit-button").innerText = "Add";
+      document.getElementById('currency').value = 'USD';
     }
 
     function loadProducts() {
-      db.collection("products").orderBy("name").onSnapshot(snapshot => {
-        const select = document.getElementById("quote-products");
-        select.innerHTML = "";
-        productMap = {};
-        snapshot.forEach(doc => {
-          const p = doc.data();
-          productMap[doc.id] = p;
-          const opt = document.createElement("option");
-          opt.value = doc.id;
-          opt.textContent = p.name;
-          select.appendChild(opt);
-        });
-        renderProductList(snapshot);
-      });
-    }
+      if (!currentUser) return;
 
-    function renderProductList(snapshot) {
-      const list = document.getElementById("product-list");
-      list.innerHTML = "";
-      snapshot.forEach(doc => {
-        const p = doc.data();
-        const row = `<tr><td>${p.name}</td><td>${p.packaging}</td><td>${p.shelfLife}</td><td>$${p.cost.toFixed(2)}</td><td>${p.markup ?? "-"}</td><td>$${p.price.toFixed(2)}</td><td><button class='btn btn-sm btn-warning' onclick='editProduct("${doc.id}", ${JSON.stringify(p)})'>Edit</button></td></tr>`;
-        list.innerHTML += row;
-      });
-    }
-
-    function addOrUpdateProduct() {
-      const name = document.getElementById("productName").value;
-      const packaging = document.getElementById("packaging").value;
-      const shelfLife = document.getElementById("shelfLife").value;
-      const cost = parseFloat(document.getElementById("cost").value);
-      const markup = parseFloat(document.getElementById("markup").value);
-      let price = parseFloat(document.getElementById("price").value);
-      const editId = document.getElementById("edit-product-id").value;
-      if (!name || isNaN(cost)) return alert("Product name and cost are required.");
-      if (isNaN(price) && !isNaN(markup)) price = cost + (cost * markup / 100);
-      if (price < cost) return alert("Price must not be below cost.");
-      const data = { name, packaging, shelfLife, cost, markup: isNaN(markup) ? null : markup, price };
-      if (editId) db.collection("products").doc(editId).update(data).then(resetProductForm);
-      else db.collection("products").add(data).then(resetProductForm);
-    }
-
-    function editProduct(id, data) {
-      document.getElementById("edit-product-id").value = id;
-      document.getElementById("productName").value = data.name;
-      document.getElementById("packaging").value = data.packaging;
-      document.getElementById("shelfLife").value = data.shelfLife;
-      document.getElementById("cost").value = data.cost;
-      document.getElementById("markup").value = data.markup ?? "";
-      document.getElementById("price").value = data.price;
-      document.getElementById("product-submit-button").innerText = "Update";
-    }
-
-    function resetProductForm() {
-      document.getElementById("edit-product-id").value = "";
-      ["productName", "packaging", "shelfLife", "cost", "markup", "price"].forEach(id => document.getElementById(id).value = "");
-      document.getElementById("product-submit-button").innerText = "Add";
-    }
-
-    function generateQuote() {
-      const customerId = document.getElementById("quote-customer").value;
-      const selectedProductIds = Array.from(document.getElementById("quote-products").selectedOptions).map(o => o.value);
-      if (!customerId || selectedProductIds.length === 0) return alert("Select a customer and at least one product.");
-      const customer = customerMap[customerId];
-      const products = selectedProductIds.map(id => productMap[id]);
-      let text = `Quotation for ${customer.name}\n${customer.contact ? 'Contact: ' + customer.contact + '\n' : ''}\nProducts:\n\n`;
-      products.forEach((p, i) => {
-        text += `${i + 1}. ${p.name}\n   Packaging: ${p.packaging || "-"}\n   Shelf Life: ${p.shelfLife || "-"}\n   Price: $${p.price.toFixed(2)}\n\n`;
-      });
-      document.getElementById("quote-result").value = text.trim();
-    }
-
-    function copyQuote() {
-      const text = document.getElementById("quote-result").value;
-      navigator.clipboard.writeText(text).then(() => alert("Copied to clipboard"));
-    }
-
-    function uploadCSV() {
-        const file = document.getElementById("csv-upload").files[0];
-        if (!file) return alert("Please select a CSV file.");
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const lines = e.target.result.split("\n").filter(line => line.trim());
-          const batch = firebase.firestore().batch();
-          lines.forEach(line => {
-            const [name, packaging, shelfLife, costStr, markupStr, priceStr] = line.split(',').map(s => s.trim());
-            if (!name || isNaN(parseFloat(costStr)) || isNaN(parseFloat(priceStr))) return;
-            const ref = db.collection("products").doc();
-            batch.set(ref, {
-              name,
-              packaging,
-              shelfLife,
-              cost: parseFloat(costStr),
-              markup: markupStr ? parseFloat(markupStr) : null,
-              price: parseFloat(priceStr)
-            });
+      db.collection('products').orderBy('createdAt', 'desc').get()
+        .then((querySnapshot) => {
+          products = [];
+          querySnapshot.forEach((doc) => {
+            products.push({ id: doc.id, ...doc.data() });
           });
-          batch.commit().then(() => alert("Products uploaded successfully!"));
-        };
-        reader.readAsText(file);
+          displayProducts();
+          updateProductSelect();
+        })
+        .catch((error) => {
+          alert('Error loading products: ' + error.message);
+        });
+    }
+
+    function displayProducts() {
+      const productList = document.getElementById('productList');
+      const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+      const sortBy = document.getElementById('sortBy')?.value || '';
+      const filterCurrency = document.getElementById('filterCurrency')?.value || '';
+
+      let filteredProducts = products.filter(product => {
+        const matchesSearch = product.din.toLowerCase().includes(searchTerm) ||
+                             product.productDescription.toLowerCase().includes(searchTerm) ||
+                             product.manufacturer.toLowerCase().includes(searchTerm);
+        const matchesCurrency = !filterCurrency || product.currency === filterCurrency;
+        return matchesSearch && matchesCurrency;
+      });
+
+      if (sortBy) {
+        filteredProducts.sort((a, b) => {
+          if (sortBy === 'cost') return a.cost - b.cost;
+          return a[sortBy].localeCompare(b[sortBy]);
+        });
       }
+
+      if (document.getElementById('productCount')) {
+        document.getElementById('productCount').textContent = filteredProducts.length;
+      }
+
+      if (productList) {
+        productList.innerHTML = '';
+        filteredProducts.forEach(product => {
+          const productDiv = document.createElement('div');
+          productDiv.className = 'border p-4 rounded bg-gray-50 hover:bg-gray-100 transition-colors';
+          productDiv.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+              <div><strong>DIN:</strong> ${product.din}</div>
+              <div><strong>Description:</strong> ${product.productDescription}</div>
+              <div><strong>Manufacturer:</strong> ${product.manufacturer}</div>
+              <div><strong>Form:</strong> ${product.form}</div>
+              <div><strong>Strength:</strong> ${product.strength}</div>
+              <div><strong>Size:</strong> ${product.size}</div>
+              <div><strong>Cost:</strong> ${product.cost.toFixed(2)} ${product.currency}</div>
+              <div><strong>SPC/Monograph:</strong> ${product.spcMonograph || 'N/A'}</div>
+              <div>
+                <button onclick="deleteProduct('${product.id}')" class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">Delete</button>
+              </div>
+            </div>
+          `;
+          productList.appendChild(productDiv);
+        });
+      }
+    }
+
+    function deleteProduct(id) {
+      if (!currentUser) return;
+      
+      if (confirm('Are you sure you want to delete this product?')) {
+        db.collection('products').doc(id).delete()
+          .then(() => {
+            loadProducts();
+            alert('Product deleted successfully!');
+          })
+          .catch((error) => {
+            alert('Error deleting product: ' + error.message);
+          });
+      }
+    }
+
+    function updateProductSelect() {
+      const productSelect = document.getElementById('productSelect');
+      productSelect.innerHTML = '<option value="">Select Product</option>';
+      
+      products.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product.id;
+        option.textContent = `${product.din} - ${product.productDescription} (${product.cost.toFixed(2)} ${product.currency})`;
+        productSelect.appendChild(option);
+      });
+
+      // Add event listener for product selection
+      productSelect.addEventListener('change', function() {
+        const productId = this.value;
+        if (productId) {
+          const product = products.find(p => p.id === productId);
+          if (product) {
+            const suggestedPrice = product.cost * 1.15; // 15% markup
+
+            document.getElementById('infoDescription').textContent = product.productDescription;
+            document.getElementById('infoManufacturer').textContent = product.manufacturer;
+            document.getElementById('infoForm').textContent = product.form;
+            document.getElementById('infoStrength').textContent = product.strength;
+            document.getElementById('infoSize').textContent = product.size;
+            document.getElementById('infoCost').textContent = `$${product.cost.toFixed(2)}`;
+            document.getElementById('selectedProductInfo').style.display = 'block';
+            document.getElementById('quantity').value = '1';
+            document.getElementById('markupInput').value = '15';
+            document.getElementById('itemPrice').value = suggestedPrice.toFixed(2);
+          }
+        } else {
+          document.getElementById('selectedProductInfo').style.display = 'none';
+        }
+      });
+    }
+
+    // Customer management functions
+    function addCustomer() {
+      if (!currentUser) return;
+
+      const customerName = document.getElementById('customerName').value;
+      const contactPerson = document.getElementById('contactPerson').value;
+      const email = document.getElementById('customerEmail').value;
+      const phone = document.getElementById('phone').value;
+      const address = document.getElementById('address').value;
+
+      if (!customerName || !contactPerson || !email) {
+        alert('Please fill in all required fields');
+        return;
+      }
+
+      const customer = {
+        customerName, contactPerson, email,
+        phone: phone || '',
+        address: address || '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      db.collection('customers').add(customer)
+        .then(() => {
+          clearCustomerForm();
+          loadCustomers();
+          alert('Customer added successfully!');
+        })
+        .catch((error) => {
+          alert('Error adding customer: ' + error.message);
+        });
+    }
+
+    function clearCustomerForm() {
+      ['customerName', 'contactPerson', 'customerEmail', 'phone', 'address'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+    }
+
+    function loadCustomers() {
+      if (!currentUser) return;
+
+      db.collection('customers').orderBy('createdAt', 'desc').get()
+        .then((querySnapshot) => {
+          customers = [];
+          querySnapshot.forEach((doc) => {
+            customers.push({ id: doc.id, ...doc.data() });
+          });
+          displayCustomers();
+          updateCustomerSelect();
+        })
+        .catch((error) => {
+          alert('Error loading customers: ' + error.message);
+        });
+    }
+
+    function displayCustomers() {
+      const customerList = document.getElementById('customerList');
+      const searchTerm = document.getElementById('customerSearch')?.value.toLowerCase() || '';
+
+      let filteredCustomers = customers.filter(customer => {
+        return customer.customerName.toLowerCase().includes(searchTerm) ||
+               customer.email.toLowerCase().includes(searchTerm) ||
+               customer.phone.toLowerCase().includes(searchTerm);
+      });
+
+      if (document.getElementById('customerCount')) {
+        document.getElementById('customerCount').textContent = filteredCustomers.length;
+      }
+
+      if (customerList) {
+        customerList.innerHTML = '';
+        filteredCustomers.forEach(customer => {
+          const customerDiv = document.createElement('div');
+          customerDiv.className = 'border p-4 rounded bg-gray-50 hover:bg-gray-100 transition-colors';
+          customerDiv.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+              <div><strong>Name:</strong> ${customer.customerName}</div>
+              <div><strong>Contact:</strong> ${customer.contactPerson}</div>
+              <div><strong>Email:</strong> ${customer.email}</div>
+              <div><strong>Phone:</strong> ${customer.phone}</div>
+              <div class="md:col-span-2"><strong>Address:</strong> ${customer.address}</div>
+              <div>
+                <button onclick="deleteCustomer('${customer.id}')" class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">Delete</button>
+              </div>
+            </div>
+          `;
+          customerList.appendChild(customerDiv);
+        });
+      }
+    }
+
+    function deleteCustomer(id) {
+      if (!currentUser) return;
+      
+      if (confirm('Are you sure you want to delete this customer?')) {
+        db.collection('customers').doc(id).delete()
+          .then(() => {
+            loadCustomers();
+            alert('Customer deleted successfully!');
+          })
+          .catch((error) => {
+            alert('Error deleting customer: ' + error.message);
+          });
+      }
+    }
+
+    function updateCustomerSelect() {
+      const customerSelect = document.getElementById('customerSelect');
+      customerSelect.innerHTML = '<option value="">Select Customer</option>';
+      
+      customers.forEach(customer => {
+        const option = document.createElement('option');
+        option.value = customer.id;
+        option.textContent = customer.customerName;
+        customerSelect.appendChild(option);
+      });
+    }
+
+    // Quotation management functions
+    function addToQuotation() {
+      const productId = document.getElementById('productSelect').value;
+      const quantity = parseInt(document.getElementById('quantity').value) || 1;
+      const markup = parseFloat(document.getElementById('markupInput').value);
+      const priceInput = parseFloat(document.getElementById('itemPrice').value);
+      
+      if (!productId) {
+        alert('Please select a product');
+        return;
+      }
+
+      const product = products.find(p => p.id === productId);
+      if (!product) {
+        alert('Product not found');
+        return;
+      }
+
+      let finalPrice = 0;
+      let finalMarkup = 0;
+      let markupAmount = 0;
+      const baseCost = product.cost;
+
+      if (!isNaN(priceInput) && priceInput > 0) {
+        if (priceInput < baseCost) {
+          alert(`Price cannot be below the base cost of $${baseCost.toFixed(2)}`);
+          return;
+        }
+        finalPrice = priceInput;
+        markupAmount = finalPrice - baseCost;
+        finalMarkup = (markupAmount / baseCost) * 100;
+      } else if (!isNaN(markup) && markup > 0) {
+        finalMarkup = markup;
+        finalPrice = baseCost * (1 + markup / 100);
+        markupAmount = finalPrice - baseCost;
+      } else {
+        alert('Please enter a valid price or markup %');
+        return;
+      }
+
+      const totalPrice = finalPrice * quantity;
+
+      const quotationItem = {
+        productId: productId,
+        product: product,
+        quantity: quantity,
+        baseCost: baseCost,
+        markup: finalMarkup,
+        markupAmount: markupAmount,
+        finalPrice: finalPrice,
+        totalPrice: totalPrice,
+        currency: product.currency,
+        productDescription: product.productDescription,
+        manufacturer: product.manufacturer,
+        form: product.form,
+        strength: product.strength,
+        size: product.size
+      };
+
+      currentQuotation.push(quotationItem);
+      displayQuotationItems();
+      clearProductSelection();
+    }
+
+    function displayQuotationItems() {
+      const quotationItems = document.getElementById('quotationItems');
+      quotationItems.innerHTML = '';
+
+      // Table header
+      const headerDiv = document.createElement('div');
+      headerDiv.className = 'grid grid-cols-8 gap-2 font-semibold text-sm bg-gray-200 p-2 rounded';
+      headerDiv.innerHTML = `
+        <div>Description</div>
+        <div>Manufacturer</div>
+        <div>Form</div>
+        <div>Strength</div>
+        <div>Size</div>
+        <div>Cost</div>
+        <div>Markup %</div>
+        <div>Price</div>
+      `;
+      quotationItems.appendChild(headerDiv);
+
+      currentQuotation.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'grid grid-cols-8 gap-2 items-center border-b p-2';
+        itemDiv.innerHTML = `
+          <div>${item.productDescription}</div>
+          <div>${item.manufacturer}</div>
+          <div>${item.form}</div>
+          <div>${item.strength}</div>
+          <div>${item.size}</div>
+          <div>$${item.baseCost.toFixed(2)} ${item.currency}</div>
+          <div>${item.markup.toFixed(1)}</div>
+          <div>$${item.finalPrice.toFixed(2)} ${item.currency}</div>
+        `;
+        quotationItems.appendChild(itemDiv);
+      });
+
+      updateQuotationTotals();
+    }
+
+    function updateQuotationTotals() {
+      const total = currentQuotation.reduce((sum, item) => sum + item.totalPrice, 0);
+      document.getElementById('quotationTotal').textContent = total.toFixed(2);
+    }
+
+    function clearProductSelection() {
+      document.getElementById('productSelect').value = '';
+      document.getElementById('quantity').value = '1';
+      document.getElementById('markupInput').value = '15';
+      document.getElementById('itemPrice').value = '';
+      document.getElementById('selectedProductInfo').style.display = 'none';
+    }
+
+    function clearQuotation() {
+      currentQuotation = [];
+      displayQuotationItems();
+      clearProductSelection();
+    }
+
+    function saveQuotation() {
+      if (!currentUser) return;
+
+      const customerId = document.getElementById('customerSelect').value;
+      const quotationDate = document.getElementById('quotationDate').value;
+
+      if (!customerId) {
+        alert('Please select a customer');
+        return;
+      }
+
+      if (currentQuotation.length === 0) {
+        alert('Please add at least one product to the quotation');
+        return;
+      }
+
+      const customer = customers.find(c => c.id === customerId);
+      const total = currentQuotation.reduce((sum, item) => sum + item.totalPrice, 0);
+
+      const quotation = {
+        customerId: customerId,
+        customerName: customer.customerName,
+        quotationDate: quotationDate,
+        items: currentQuotation,
+        total: total,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      db.collection('quotations').add(quotation)
+        .then(() => {
+          alert('Quotation saved successfully!');
+          clearQuotation();
+          loadQuotationHistory();
+        })
+        .catch((error) => {
+          alert('Error saving quotation: ' + error.message);
+        });
+    }
+
+    function copyQuotationToClipboard() {
+      if (currentQuotation.length === 0) {
+        alert('No items to copy');
+        return;
+      }
+      const customerId = document.getElementById('customerSelect').value;
+      const customer = customers.find(c => c.id === customerId);
+      const quotationDate = document.getElementById('quotationDate').value;
+      const total = currentQuotation.reduce((sum, item) => sum + item.totalPrice, 0);
+
+      let text = '';
+      text += `Customer: | ${customer ? customer.customerName : ''}\n`;
+      text += `Date: | ${quotationDate}\n`;
+      text += `\n`;
+      text += `Product description | Manufacturer | Form | Strength | Size | Cost | Markup % | Price\n`;
+      text += `--------------------------------------------------------------------------------------\n`;
+      currentQuotation.forEach(item => {
+        text += `${item.productDescription} | ${item.manufacturer} | ${item.form} | ${item.strength} | ${item.size} | ${item.baseCost.toFixed(2)} ${item.currency} | ${item.markup.toFixed(1)} | ${item.finalPrice.toFixed(2)} ${item.currency}\n`;
+      });
+      text += `\nTotal: | $${total.toFixed(2)}\n`;
+
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.value = text;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempTextArea);
+      alert('Quotation copied to clipboard!');
+    }
+
+    // Quotation history functions
+    function loadQuotationHistory() {
+      if (!currentUser) return;
+
+      db.collection('quotations').orderBy('createdAt', 'desc').get()
+        .then((querySnapshot) => {
+          quotations = [];
+          querySnapshot.forEach((doc) => {
+            quotations.push({ id: doc.id, ...doc.data() });
+          });
+          displayQuotationHistory();
+        })
+        .catch((error) => {
+          alert('Error loading quotation history: ' + error.message);
+        });
+    }
+
+    function displayQuotationHistory() {
+      const historyList = document.getElementById('historyList');
+      const searchTerm = document.getElementById('historySearch')?.value.toLowerCase() || '';
+      const dateFilter = document.getElementById('historyDateFilter')?.value || '';
+
+      let filteredQuotations = quotations.filter(quotation => {
+        const matchesSearch = quotation.customerName.toLowerCase().includes(searchTerm) ||
+                             quotation.id.toLowerCase().includes(searchTerm);
+        
+        let matchesDate = true;
+        if (dateFilter) {
+          const quotationDate = new Date(quotation.quotationDate);
+          const today = new Date();
+          
+          switch (dateFilter) {
+            case 'today':
+              matchesDate = quotationDate.toDateString() === today.toDateString();
+              break;
+            case 'week':
+              const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+              matchesDate = quotationDate >= weekAgo;
+              break;
+            case 'month':
+              const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+              matchesDate = quotationDate >= monthAgo;
+              break;
+          }
+        }
+        
+        return matchesSearch && matchesDate;
+      });
+
+      if (historyList) {
+        historyList.innerHTML = '';
+        filteredQuotations.forEach(quotation => {
+          const quotationDiv = document.createElement('div');
+          quotationDiv.className = 'border p-4 rounded bg-gray-50 hover:bg-gray-100 transition-colors';
+          quotationDiv.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <div class="font-semibold">${quotation.customerName}</div>
+                <div class="text-sm text-gray-600">Date: ${quotation.quotationDate}</div>
+                <div class="text-sm text-gray-600">Items: ${quotation.items.length}</div>
+              </div>
+              <div class="text-center">
+                <div class="text-sm text-gray-600">Total</div>
+                <div class="font-semibold text-blue-600">${quotation.total.toFixed(2)}</div>
+              </div>
+              <div class="text-center">
+                <button onclick="viewQuotationDetails('${quotation.id}')" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">View Details</button>
+              </div>
+            </div>
+          `;
+          historyList.appendChild(quotationDiv);
+        });
+      }
+    }
+
+    function viewQuotationDetails(quotationId) {
+      const quotation = quotations.find(q => q.id === quotationId);
+      if (!quotation) return;
+
+      const detailsWindow = window.open('', '_blank');
+      detailsWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Quotation Details</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .customer-info { margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            .totals { text-align: right; margin-top: 20px; }
+            .total { font-size: 18px; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Quotation Details</h1>
+            <p>Date: ${quotation.quotationDate}</p>
+          </div>
+          
+          <div class="customer-info">
+            <h3>Customer Information</h3>
+            <p><strong>Name:</strong> ${quotation.customerName}</p>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Description</th>
+                <th>Qty</th>
+                <th>Base Cost</th>
+                <th>Markup</th>
+                <th>Final Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${quotation.items.map(item => `
+                <tr>
+                  <td>${item.product.din}</td>
+                  <td>${item.product.productDescription}</td>
+                  <td>${item.quantity}</td>
+                  <td>${item.baseCost.toFixed(2)} ${item.currency}</td>
+                  <td>${item.markup.toFixed(1)}%</td>
+                  <td>${item.finalPrice.toFixed(2)} ${item.currency}</td>
+                  <td>${item.totalPrice.toFixed(2)} ${item.currency}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="totals">
+            <p class="total">Total: ${quotation.total.toFixed(2)}</p>
+          </div>
+        </body>
+        </html>
+      `);
+      detailsWindow.document.close();
+    }
+
+    // Bulk upload functions
+    function uploadFile() {
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+      
+      if (!file) {
+        alert('Please select a file');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = e.target.result;
+        
+        if (file.name.endsWith('.csv')) {
+          Papa.parse(data, {
+            header: true,
+            complete: function(results) {
+              processBulkData(results.data);
+            },
+            error: function(error) {
+              alert('Error parsing CSV file: ' + error.message);
+            }
+          });
+        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+          processBulkData(jsonData);
+        }
+      };
+      
+      reader.readAsBinaryString(file);
+    }
+
+    function processBulkData(data) {
+      if (!currentUser) return;
+
+      let successCount = 0;
+      let errorCount = 0;
+      const promises = [];
+
+      data.forEach((row, index) => {
+        if (row.DIN && row['Product Description'] && row.Manufacturer && row.Form && row.Strength && row.Size && row.Cost) {
+          const product = {
+            din: row.DIN.toString(),
+            productDescription: row['Product Description'],
+            manufacturer: row.Manufacturer,
+            form: row.Form,
+            strength: row.Strength,
+            size: row.Size,
+            cost: parseFloat(row.Cost) || 0,
+            currency: row.Currency || 'USD',
+            spcMonograph: row['SPC/Monograph'] || '',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
+
+          promises.push(
+            db.collection('products').add(product)
+              .then(() => successCount++)
+              .catch(() => errorCount++)
+          );
+        } else {
+          errorCount++;
+        }
+      });
+
+      Promise.all(promises).then(() => {
+        alert(`Bulk upload completed!\nSuccess: ${successCount}\nErrors: ${errorCount}`);
+        loadProducts();
+        document.getElementById('fileInput').value = '';
+      });
+    }
+
+    // Search and filter functions
+    function clearSearch() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('sortBy').value = '';
+      document.getElementById('filterCurrency').value = '';
+      displayProducts();
+    }
+
+    function clearCustomerSearch() {
+      document.getElementById('customerSearch').value = '';
+      displayCustomers();
+    }
+
+    function exportToCSV() {
+      const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+      const filterCurrency = document.getElementById('filterCurrency')?.value || '';
+
+      let filteredProducts = products.filter(product => {
+        const matchesSearch = product.din.toLowerCase().includes(searchTerm) ||
+                             product.productDescription.toLowerCase().includes(searchTerm) ||
+                             product.manufacturer.toLowerCase().includes(searchTerm);
+        const matchesCurrency = !filterCurrency || product.currency === filterCurrency;
+        return matchesSearch && matchesCurrency;
+      });
+
+      const csvContent = [
+        ['DIN', 'Product Description', 'Manufacturer', 'Form', 'Strength', 'Size', 'Cost', 'Currency', 'SPC/Monograph'],
+        ...filteredProducts.map(product => [
+          product.din,
+          product.productDescription,
+          product.manufacturer,
+          product.form,
+          product.strength,
+          product.size,
+          product.cost,
+          product.currency,
+          product.spcMonograph
+        ])
+      ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'products_export.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+
+    // Add event listeners for search functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      // Product search
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) {
+        searchInput.addEventListener('input', displayProducts);
+      }
+
+      const sortBy = document.getElementById('sortBy');
+      if (sortBy) {
+        sortBy.addEventListener('change', displayProducts);
+      }
+
+      const filterCurrency = document.getElementById('filterCurrency');
+      if (filterCurrency) {
+        filterCurrency.addEventListener('change', displayProducts);
+      }
+
+      // Customer search
+      const customerSearch = document.getElementById('customerSearch');
+      if (customerSearch) {
+        customerSearch.addEventListener('input', displayCustomers);
+      }
+
+      // Quotation history search
+      const historySearch = document.getElementById('historySearch');
+      if (historySearch) {
+        historySearch.addEventListener('input', displayQuotationHistory);
+      }
+
+      const historyDateFilter = document.getElementById('historyDateFilter');
+      if (historyDateFilter) {
+        historyDateFilter.addEventListener('change', displayQuotationHistory);
+      }
+    });
   </script>
 </body>
 </html>
