@@ -867,8 +867,8 @@
       const dateFilter = document.getElementById('historyDateFilter')?.value || '';
 
       let filteredQuotations = quotations.filter(quotation => {
-        const matchesSearch = quotation.customerName.toLowerCase().includes(searchTerm) ||
-                             quotation.id.toLowerCase().includes(searchTerm);
+        const matchesSearch = (quotation.customerName || '').toLowerCase().includes(searchTerm) ||
+                             (quotation.id || '').toLowerCase().includes(searchTerm);
         
         let matchesDate = true;
         if (dateFilter) {
@@ -896,25 +896,28 @@
       if (historyList) {
         historyList.innerHTML = '';
         filteredQuotations.forEach(quotation => {
-          const quotationDiv = document.createElement('div');
-          quotationDiv.className = 'border p-4 rounded bg-gray-50 hover:bg-gray-100 transition-colors';
-          quotationDiv.innerHTML = `
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <div class="font-semibold">${quotation.customerName}</div>
-                <div class="text-sm text-gray-600">Date: ${quotation.quotationDate}</div>
-                <div class="text-sm text-gray-600">Items: ${quotation.items.length}</div>
-              </div>
-              <div class="text-center">
-                <div class="text-sm text-gray-600">Total</div>
-                <div class="font-semibold text-blue-600">${quotation.total.toFixed(2)}</div>
-              </div>
-              <div class="text-center">
-                <button onclick="viewQuotationDetails('${quotation.id}')" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">View Details</button>
+          const itemsCount = Array.isArray(quotation.items) ? quotation.items.length : 0;
+          const totalValue = typeof quotation.total === 'number' ? quotation.total.toFixed(2) : '0.00';
+          const customerName = quotation.customerName || '';
+          const quotationDate = quotation.quotationDate || '';
+          historyList.innerHTML += `
+            <div class="border p-4 rounded bg-gray-50 hover:bg-gray-100 transition-colors">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <div class="font-semibold">${customerName}</div>
+                  <div class="text-sm text-gray-600">Date: ${quotationDate}</div>
+                  <div class="text-sm text-gray-600">Items: ${itemsCount}</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-sm text-gray-600">Total</div>
+                  <div class="font-semibold text-blue-600">${totalValue}</div>
+                </div>
+                <div class="text-center">
+                  <button onclick="viewQuotationDetails('${quotation.id}')" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">View Details</button>
+                </div>
               </div>
             </div>
           `;
-          historyList.appendChild(quotationDiv);
         });
       }
     }
