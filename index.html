@@ -1033,28 +1033,77 @@
       let errorCount = 0;
       const promises = [];
 
+      // Map normalized keys to standard field names
+      const fieldMap = {
+        din: 'DIN',
+        productdescription: 'Product Description',
+        manufacturer: 'Manufacturer',
+        form: 'Form',
+        strength: 'Strength',
+        size: 'Size',
+        cost: 'Cost',
+        currency: 'Currency',
+        spcmonograph: 'SPC/Monograph'
+      };
+
+      function normalizeKey(key) {
+        return key.trim().toLowerCase().replace(/\s+/g, '');
+      }
+
+      function normalizeRow(row) {
+        const normalized = {};
+        for (const key in row) {
+          if (Object.hasOwnProperty.call(row, key)) {
+            const nkey = normalizeKey(key);
+            let value = row[key];
+            if (typeof value === 'string') value = value.trim();
+            // Map to standard field name if possible
+            if (fieldMap[nkey]) {
+              normalized[fieldMap[nkey]] = value;
+            } else {
+              normalized[key.trim()] = value;
+            }
+          }
+        }
+        return normalized;
+      }
+
       data.forEach((row, index) => {
-        if (row.DIN && row['Product Description'] && row.Manufacturer && row.Form && row.Strength && row.Size && row.Cost) {
+        const nrow = normalizeRow(row);
+        if (index === 0) {
+          console.log('Parsed header keys:', Object.keys(nrow));
+        }
+        // Required fields
+        const required = [
+          nrow['DIN'],
+          nrow['Product Description'],
+          nrow['Manufacturer'],
+          nrow['Form'],
+          nrow['Strength'],
+          nrow['Size'],
+          nrow['Cost']
+        ];
+        if (required.every(v => v !== undefined && v !== null && v !== '')) {
           const product = {
-            din: row.DIN.toString(),
-            productDescription: row['Product Description'],
-            manufacturer: row.Manufacturer,
-            form: row.Form,
-            strength: row.Strength,
-            size: row.Size,
-            cost: parseFloat(row.Cost) || 0,
-            currency: row.Currency || 'USD',
-            spcMonograph: row['SPC/Monograph'] || '',
+            din: nrow['DIN'].toString(),
+            productDescription: nrow['Product Description'],
+            manufacturer: nrow['Manufacturer'],
+            form: nrow['Form'],
+            strength: nrow['Strength'],
+            size: nrow['Size'],
+            cost: parseFloat(nrow['Cost']) || 0,
+            currency: nrow['Currency'] || 'USD',
+            spcMonograph: nrow['SPC/Monograph'] || '',
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           };
-
           promises.push(
             db.collection('products').add(product)
               .then(() => successCount++)
-              .catch(() => errorCount++)
+              .catch((e) => { errorCount++; console.error('Upload error:', e, product); })
           );
         } else {
           errorCount++;
+          console.warn('Skipped row (missing required fields):', nrow);
         }
       });
 
