@@ -81,9 +81,10 @@
           <div class="mb-6 p-4 bg-green-50 rounded-lg">
             <h3 class="text-lg font-semibold mb-3">Add Products</h3>
             <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
-              <select id="productSelect" class="border p-2 rounded w-full">
-                <option value="">Select Product</option>
-              </select>
+              <div class="relative">
+                <input id="productAutocomplete" type="text" class="border p-2 rounded w-full" placeholder="Type to search product..." autocomplete="off">
+                <div id="productAutocompleteList" class="absolute z-10 bg-white border w-full rounded shadow max-h-48 overflow-y-auto" style="display:none;"></div>
+              </div>
               <input id="quantity" type="number" placeholder="Quantity" class="border p-2 rounded w-full" min="1" value="1">
               <input id="markupInput" type="number" placeholder="Markup %" class="border p-2 rounded w-full" min="0" step="0.1">
               <input id="itemPrice" type="number" placeholder="Price" class="border p-2 rounded w-full" min="0" step="0.01">
@@ -315,6 +316,8 @@
       
       // Set default date
       document.getElementById('quotationDate').valueAsDate = new Date();
+      setupMarkupPriceBinding();
+      setupProductAutocomplete();
     }
 
     // Page navigation
@@ -428,6 +431,7 @@
           });
           displayProducts();
           updateProductSelect();
+          setupProductAutocomplete();
         })
         .catch((error) => {
           alert('Error loading products: ' + error.message);
@@ -499,9 +503,67 @@
       }
     }
 
+    // --- Real-time markup/price two-way binding ---
+    function setupMarkupPriceBinding() {
+      const markupInput = document.getElementById('markupInput');
+      const priceInput = document.getElementById('itemPrice');
+      const productInput = document.getElementById('productAutocomplete');
+      // Remove previous listeners by cloning
+      const markupClone = markupInput.cloneNode(true);
+      markupInput.parentNode.replaceChild(markupClone, markupInput);
+      const priceClone = priceInput.cloneNode(true);
+      priceInput.parentNode.replaceChild(priceClone, priceInput);
+      // Now markupClone and priceClone are the new elements
+      let isUpdating = false;
+      function getCost() {
+        const productId = productInput.getAttribute('data-product-id');
+        const product = products.find(p => p.id === productId);
+        return product ? product.cost : 0;
+      }
+      markupClone.addEventListener('input', function () {
+        if (isUpdating) return;
+        isUpdating = true;
+        const cost = parseFloat(getCost());
+        const markup = parseFloat(markupClone.value);
+        if (!isNaN(markup) && cost > 0) {
+          const price = cost * (1 + markup / 100);
+          priceClone.value = price.toFixed(2);
+        }
+        isUpdating = false;
+      });
+      priceClone.addEventListener('input', function () {
+        if (isUpdating) return;
+        isUpdating = true;
+        const cost = parseFloat(getCost());
+        const price = parseFloat(priceClone.value);
+        if (!isNaN(price) && !isNaN(cost) && cost > 0) {
+          if (price >= cost) {
+            const markup = ((price - cost) / cost) * 100;
+            markupClone.value = markup.toFixed(2);
+          } else if (price === 0 || priceClone.value === '') {
+            markupClone.value = '';
+          } else {
+            markupClone.value = '0.00';
+          }
+        } else {
+          markupClone.value = '';
+        }
+        isUpdating = false;
+      });
+      // Update global references for later use
+      markupClone.id = 'markupInput';
+      priceClone.id = 'itemPrice';
+    }
+
+    // 在页面初始化时只调用一次 setupMarkupPriceBinding
+    document.addEventListener('DOMContentLoaded', function() {
+      setupMarkupPriceBinding();
+    });
+
+    // Call this after products are loaded and on product selection
     function updateProductSelect() {
-      const productSelect = document.getElementById('productSelect');
-      productSelect.innerHTML = '<option value="">Select Product</option>';
+      const productSelect = document.getElementById('productAutocomplete');
+      productSelect.innerHTML = '';
       
       products.forEach(product => {
         const option = document.createElement('option');
@@ -532,6 +594,69 @@
         } else {
           document.getElementById('selectedProductInfo').style.display = 'none';
         }
+      });
+    }
+
+    // --- Product Autocomplete for Quotation ---
+    function setupProductAutocomplete() {
+      const input = document.getElementById('productAutocomplete');
+      const list = document.getElementById('productAutocompleteList');
+      input.value = '';
+      input.setAttribute('data-product-id', '');
+
+      function renderList(filtered) {
+        if (!filtered.length) {
+          list.style.display = 'none';
+          list.innerHTML = '';
+          return;
+        }
+        list.innerHTML = filtered.map(p =>
+          `<div class='px-3 py-2 cursor-pointer hover:bg-blue-100' data-id='${p.id}'>${p.din} - ${p.productDescription} (${p.manufacturer})</div>`
+        ).join('');
+        list.style.display = 'block';
+      }
+
+      input.addEventListener('input', function() {
+        const keyword = input.value.trim().toLowerCase();
+        if (!keyword) {
+          renderList([]);
+          return;
+        }
+        const filtered = products.filter(p =>
+          p.productDescription.toLowerCase().includes(keyword) ||
+          p.din.toLowerCase().includes(keyword) ||
+          p.manufacturer.toLowerCase().includes(keyword)
+        );
+        renderList(filtered.slice(0, 20));
+      });
+
+      list.addEventListener('mousedown', function(e) {
+        if (e.target && e.target.dataset.id) {
+          const product = products.find(p => p.id === e.target.dataset.id);
+          if (product) {
+            input.value = `${product.din} - ${product.productDescription}`;
+            input.setAttribute('data-product-id', product.id);
+            list.style.display = 'none';
+            // Fill product info and price/markup
+            const suggestedPrice = product.cost * 1.15;
+            document.getElementById('infoDescription').textContent = product.productDescription;
+            document.getElementById('infoManufacturer').textContent = product.manufacturer;
+            document.getElementById('infoForm').textContent = product.form;
+            document.getElementById('infoStrength').textContent = product.strength;
+            document.getElementById('infoSize').textContent = product.size;
+            document.getElementById('infoCost').textContent = `$${product.cost.toFixed(2)}`;
+            document.getElementById('selectedProductInfo').style.display = 'block';
+            document.getElementById('quantity').value = '1';
+            document.getElementById('markupInput').value = '15';
+            document.getElementById('itemPrice').value = suggestedPrice.toFixed(2);
+            setupMarkupPriceBinding();
+          }
+        }
+      });
+
+      // Hide list on blur (with delay for click)
+      input.addEventListener('blur', function() {
+        setTimeout(() => { list.style.display = 'none'; }, 200);
       });
     }
 
@@ -656,27 +781,24 @@
 
     // Quotation management functions
     function addToQuotation() {
-      const productId = document.getElementById('productSelect').value;
+      const input = document.getElementById('productAutocomplete');
+      const productId = input.getAttribute('data-product-id');
       const quantity = parseInt(document.getElementById('quantity').value) || 1;
       const markup = parseFloat(document.getElementById('markupInput').value);
       const priceInput = parseFloat(document.getElementById('itemPrice').value);
-      
       if (!productId) {
         alert('Please select a product');
         return;
       }
-
       const product = products.find(p => p.id === productId);
       if (!product) {
         alert('Product not found');
         return;
       }
-
       let finalPrice = 0;
       let finalMarkup = 0;
       let markupAmount = 0;
       const baseCost = product.cost;
-
       if (!isNaN(priceInput) && priceInput > 0) {
         if (priceInput < baseCost) {
           alert(`Price cannot be below the base cost of $${baseCost.toFixed(2)}`);
@@ -693,9 +815,7 @@
         alert('Please enter a valid price or markup %');
         return;
       }
-
       const totalPrice = finalPrice * quantity;
-
       const quotationItem = {
         productId: productId,
         product: product,
@@ -710,9 +830,9 @@
         manufacturer: product.manufacturer,
         form: product.form,
         strength: product.strength,
-        size: product.size
+        size: product.size,
+        spcMonograph: product.spcMonograph
       };
-
       currentQuotation.push(quotationItem);
       displayQuotationItems();
       clearProductSelection();
@@ -762,7 +882,8 @@
     }
 
     function clearProductSelection() {
-      document.getElementById('productSelect').value = '';
+      document.getElementById('productAutocomplete').value = '';
+      document.getElementById('productAutocomplete').setAttribute('data-product-id', '');
       document.getElementById('quantity').value = '1';
       document.getElementById('markupInput').value = '15';
       document.getElementById('itemPrice').value = '';
@@ -822,18 +943,19 @@
       const customerId = document.getElementById('customerSelect').value;
       const customer = customers.find(c => c.id === customerId);
       const quotationDate = document.getElementById('quotationDate').value;
-      const total = currentQuotation.reduce((sum, item) => sum + item.totalPrice, 0);
 
       let text = '';
       text += `Customer: | ${customer ? customer.customerName : ''}\n`;
-      text += `Date: | ${quotationDate}\n`;
-      text += `\n`;
-      text += `Product description | Manufacturer | Form | Strength | Size | Cost | Markup % | Price\n`;
-      text += `--------------------------------------------------------------------------------------\n`;
+      text += `Date: | ${quotationDate}\n\n`;
       currentQuotation.forEach(item => {
-        text += `${item.productDescription} | ${item.manufacturer} | ${item.form} | ${item.strength} | ${item.size} | ${item.baseCost.toFixed(2)} ${item.currency} | ${item.markup.toFixed(1)} | ${item.finalPrice.toFixed(2)} ${item.currency}\n`;
+        text += `Product description - ${item.productDescription}\n`;
+        text += `Manufacturer - ${item.manufacturer}\n`;
+        text += `Form - ${item.form}\n`;
+        text += `Strength - ${item.strength}\n`;
+        text += `Size - ${item.size}\n`;
+        text += `Price - ${item.finalPrice.toFixed(2)} ${item.currency}\n`;
+        text += `SPC/Monograph - ${item.spcMonograph || ''}\n\n`;
       });
-      text += `\nTotal: | $${total.toFixed(2)}\n`;
 
       const tempTextArea = document.createElement('textarea');
       tempTextArea.value = text;
