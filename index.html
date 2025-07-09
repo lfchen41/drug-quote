@@ -1032,6 +1032,13 @@
           const totalValue = typeof quotation.total === 'number' ? quotation.total.toFixed(2) : '0.00';
           const customerName = quotation.customerName || '';
           const quotationDate = quotation.quotationDate || '';
+          //product details
+          let itemsDetail = '';
+          if (Array.isArray(quotation.items)) {
+            itemsDetail = '<ul class="ml-4 list-disc text-xs text-gray-700">' + quotation.items.map(item =>
+              `<li>${item.product.din || ''} ${item.product.productDescription || ''} ($${item.finalPrice ? item.finalPrice.toFixed(2) : ''} ${item.currency || ''})</li>`
+            ).join('') + '</ul>';
+          }
           historyList.innerHTML += `
             <div class="border p-4 rounded bg-gray-50 hover:bg-gray-100 transition-colors">
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1039,6 +1046,7 @@
                   <div class="font-semibold">${customerName}</div>
                   <div class="text-sm text-gray-600">Date: ${quotationDate}</div>
                   <div class="text-sm text-gray-600">Items: ${itemsCount}</div>
+                  ${itemsDetail}
                 </div>
                 <div class="text-center">
                   <div class="text-sm text-gray-600">Total</div>
