@@ -13,7 +13,7 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
   <!-- Header -->
-  <header class="bg-blue-800 text-white shadow-lg">
+  <header class="bg-red-800 text-white shadow-lg">
     <div class="max-w-7xl mx-auto px-4 py-3">
       <div class="flex justify-between items-center">
         <h1 class="text-2xl font-bold">Drug Quotation System</h1>
@@ -1058,14 +1058,22 @@
       const dateFilter = document.getElementById('historyDateFilter')?.value || '';
 
       let filteredQuotations = quotations.filter(quotation => {
-        const matchesSearch = (quotation.customerName || '').toLowerCase().includes(searchTerm) ||
-                             (quotation.id || '').toLowerCase().includes(searchTerm);
-        
+        // Support product-related field search
+        const matchesProduct = (quotation.items || []).some(item => {
+          const prod = item.product || {};
+          return (
+            (prod.din || '').toLowerCase().includes(searchTerm) ||
+            (prod.productDescription || '').toLowerCase().includes(searchTerm) ||
+            (prod.manufacturer || '').toLowerCase().includes(searchTerm)
+          );
+        });
+        const matchesCustomer = (quotation.customerName || '').toLowerCase().includes(searchTerm);
+        const matchesId = (quotation.id || '').toLowerCase().includes(searchTerm);
+
         let matchesDate = true;
         if (dateFilter) {
           const quotationDate = new Date(quotation.quotationDate);
           const today = new Date();
-          
           switch (dateFilter) {
             case 'today':
               matchesDate = quotationDate.toDateString() === today.toDateString();
@@ -1080,8 +1088,8 @@
               break;
           }
         }
-        
-        return matchesSearch && matchesDate;
+        // One match
+        return (matchesCustomer || matchesId || matchesProduct) && matchesDate;
       });
 
       if (historyList) {
