@@ -1016,14 +1016,15 @@
       text += `Customer: | ${customer ? customer.customerName : ''}\n`;
       text += `Date: | ${quotationDate}\n\n`;
       currentQuotation.forEach(item => {
-        text += `DIN - ${item.product.din}\n`;
-        text += `Product description - ${item.productDescription}\n`;
-        text += `Manufacturer - ${item.manufacturer}\n`;
-        text += `Form - ${item.form}\n`;
-        text += `Strength - ${item.strength}\n`;
-        text += `Size - ${item.size}\n`;
+        if (item.product.din) text += `DIN - ${item.product.din}\n`;
+        if (item.productDescription) text += `Product description - ${item.productDescription}\n`;
+        if (item.manufacturer) text += `Manufacturer - ${item.manufacturer}\n`;
+        if (item.form) text += `Form - ${item.form}\n`;
+        if (item.strength) text += `Strength - ${item.strength}\n`;
+        if (item.size) text += `Size - ${item.size}\n`;
         text += `Price - ${item.finalPrice.toFixed(2)} ${item.currency}\n`;
-        text += `SPC/Monograph - ${item.spcMonograph || ''}\n\n`;
+        if (item.spcMonograph) text += `SPC/Monograph - ${item.spcMonograph}\n`;
+        text += '\n';
       });
 
       const tempTextArea = document.createElement('textarea');
@@ -1295,7 +1296,7 @@
             strength: nrow['Strength'] || '',
             size: nrow['Size'] || '',
             cost: parseFloat(nrow['Cost']) || 0,
-            currency: nrow['Currency'] || 'USD',
+            currency: nrow['Currency'] || 'CAD',
             spcMonograph: nrow['SPC/Monograph'] || '',
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           };
@@ -1461,14 +1462,15 @@
       }
       text += `Date: | ${quotationDate}\n\n`;
       (quotation.items || []).forEach(item => {
-        text += `DIN - ${item.product?.din || ''}\n`;
-        text += `Product description - ${item.productDescription || ''}\n`;
-        text += `Manufacturer - ${item.manufacturer || ''}\n`;
-        text += `Form - ${item.form || ''}\n`;
-        text += `Strength - ${item.strength || ''}\n`;
-        text += `Size - ${item.size || ''}\n`;
+        if (item.product?.din) text += `DIN - ${item.product.din}\n`;
+        if (item.productDescription) text += `Product description - ${item.productDescription}\n`;
+        if (item.manufacturer) text += `Manufacturer - ${item.manufacturer}\n`;
+        if (item.form) text += `Form - ${item.form}\n`;
+        if (item.strength) text += `Strength - ${item.strength}\n`;
+        if (item.size) text += `Size - ${item.size}\n`;
         text += `Price - ${item.finalPrice?.toFixed(2) || ''} ${item.currency || ''}\n`;
-        text += `SPC/Monograph - ${item.spcMonograph || ''}\n\n`;
+        if (item.spcMonograph) text += `SPC/Monograph - ${item.spcMonograph}\n`;
+        text += '\n';
       });
       const tempTextArea = document.createElement('textarea');
       tempTextArea.value = text;
