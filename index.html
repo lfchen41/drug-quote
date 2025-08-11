@@ -1281,24 +1281,19 @@
         if (index === 0) {
           console.log('Parsed header keys:', Object.keys(nrow));
         }
-        // Required fields
+        
         const required = [
           nrow['DIN'],
-          nrow['Product Description'],
-          nrow['Manufacturer'],
-          nrow['Form'],
-          nrow['Strength'],
-          nrow['Size'],
           nrow['Cost']
         ];
         if (required.every(v => v !== undefined && v !== null && v !== '')) {
           const product = {
             din: nrow['DIN'].toString(),
-            productDescription: nrow['Product Description'],
-            manufacturer: nrow['Manufacturer'],
-            form: nrow['Form'],
-            strength: nrow['Strength'],
-            size: nrow['Size'],
+            productDescription: nrow['Product Description'] || '',
+            manufacturer: nrow['Manufacturer'] || '',
+            form: nrow['Form'] || '',
+            strength: nrow['Strength'] || '',
+            size: nrow['Size'] || '',
             cost: parseFloat(nrow['Cost']) || 0,
             currency: nrow['Currency'] || 'USD',
             spcMonograph: nrow['SPC/Monograph'] || '',
@@ -1311,7 +1306,7 @@
           );
         } else {
           errorCount++;
-          console.warn('Skipped row (missing required fields):', nrow);
+          console.warn('Skipped row (missing required fields DIN or Cost):', nrow);
         }
       });
 
