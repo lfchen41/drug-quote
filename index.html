@@ -214,6 +214,22 @@
             </div>
           </div>
 
+          <!-- page control -->
+          <div class="mb-4 p-4 bg-blue-50 rounded-lg">
+            <div class="flex justify-between items-center">
+              <div class="text-sm text-gray-600">
+                Showing <span id="paginationInfo">0-0 of 0</span> products
+              </div>
+              <div class="flex space-x-2">
+                <button id="prevPageBtn" onclick="previousPage()" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+                <div class="flex space-x-1 overflow-x-auto max-w-48 px-2" id="pageNumbersContainer">
+                  <span id="pageNumbers" class="flex space-x-1"></span>
+                </div>
+                <button id="nextPageBtn" onclick="nextPage()" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Products List -->
           <div class="mb-4">
             <h3 class="text-lg font-semibold mb-3">Products (<span id="productCount">0</span>)</h3>
@@ -311,6 +327,8 @@
     let quotations = [];
     let currentQuotation = [];
     let currentPage = 'quotation';
+    let currentProductPage = 1;
+    const itemsPerPage = 20;
 
     // Authentication state observer
     auth.onAuthStateChanged((user) => {
@@ -485,13 +503,23 @@
         });
       }
 
+      // page logic
+      const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+      const startIndex = (currentProductPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+
+      // update page info
+      updatePaginationInfo(filteredProducts.length, startIndex + 1, Math.min(endIndex, filteredProducts.length));
+      updatePaginationControls(totalPages);
+
       if (document.getElementById('productCount')) {
         document.getElementById('productCount').textContent = filteredProducts.length;
       }
 
       if (productList) {
         productList.innerHTML = '';
-        filteredProducts.forEach(product => {
+        paginatedProducts.forEach(product => {
           const productDiv = document.createElement('div');
           productDiv.className = 'border p-4 rounded bg-gray-50 hover:bg-gray-100 transition-colors';
           productDiv.innerHTML = `
@@ -513,7 +541,7 @@
           productList.appendChild(productDiv);
         });
       }
-      // 2. 页面底部加一个隐藏的产品编辑表单
+      // 2. add a hidden product edit form to the bottom of the page
       if (!document.getElementById('editProductModal')) {
         const modal = document.createElement('div');
         modal.id = 'editProductModal';
@@ -1323,6 +1351,7 @@
       document.getElementById('searchInput').value = '';
       document.getElementById('sortBy').value = '';
       document.getElementById('filterCurrency').value = '';
+      resetToFirstPage();
       displayProducts();
     }
 
@@ -1479,6 +1508,116 @@
       document.execCommand('copy');
       document.body.removeChild(tempTextArea);
       alert('Quotation copied to clipboard!');
+    }
+
+    // page control function
+    function updatePaginationInfo(total, start, end) {
+      const paginationInfo = document.getElementById('paginationInfo');
+      if (paginationInfo) {
+        paginationInfo.textContent = `${start}-${end} of ${total}`;
+      }
+    }
+
+    // optimize page control function, only show partial page numbers
+    function updatePaginationControls(totalPages) {
+      const pageNumbers = document.getElementById('pageNumbers');
+      const prevBtn = document.getElementById('prevPageBtn');
+      const nextBtn = document.getElementById('nextPageBtn');
+
+      if (pageNumbers) {
+        pageNumbers.innerHTML = '';
+        
+        // smart page control: show max 7 page numbers
+        const maxVisiblePages = 7;
+        let startPage = 1;
+        let endPage = totalPages;
+        
+        if (totalPages > maxVisiblePages) {
+          if (currentProductPage <= 4) {
+            // current page is in the first few pages, show the first 7 pages
+            endPage = maxVisiblePages;
+          } else if (currentProductPage >= totalPages - 3) {
+            // current page is in the last few pages, show the last 7 pages
+            startPage = totalPages - maxVisiblePages + 1;
+          } else {
+            // current page is in the middle, show the current page前后各3页
+            startPage = currentProductPage - 3;
+            endPage = currentProductPage + 3;
+          }
+        }
+        
+        // add the first page and ellipsis
+        if (startPage > 1) {
+          const firstPageBtn = document.createElement('button');
+          firstPageBtn.textContent = '1';
+          firstPageBtn.className = 'px-3 py-1 rounded text-sm bg-gray-200 text-gray-700 hover:bg-gray-300';
+          firstPageBtn.onclick = () => goToPage(1);
+          pageNumbers.appendChild(firstPageBtn);
+          
+          if (startPage > 2) {
+            const ellipsis = document.createElement('span');
+            ellipsis.textContent = '...';
+            ellipsis.className = 'px-2 py-1 text-gray-500';
+            pageNumbers.appendChild(ellipsis);
+          }
+        }
+        
+          // show page numbers
+        for (let i = startPage; i <= endPage; i++) {
+          const pageBtn = document.createElement('button');
+          pageBtn.textContent = i;
+          pageBtn.className = `px-3 py-1 rounded text-sm ${i === currentProductPage ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`;
+          pageBtn.onclick = () => goToPage(i);
+          pageNumbers.appendChild(pageBtn);
+        }
+        
+        // show ellipsis and last page button
+        if (endPage < totalPages) {
+          if (endPage < totalPages - 1) {
+            const ellipsis = document.createElement('span');
+            ellipsis.textContent = '...';
+            ellipsis.className = 'px-2 py-1 text-gray-500';
+            pageNumbers.appendChild(ellipsis);
+          }
+          
+          const lastPageBtn = document.createElement('button');
+          lastPageBtn.textContent = totalPages;
+          lastPageBtn.className = 'px-3 py-1 rounded text-sm bg-gray-200 text-gray-700 hover:bg-gray-300';
+          lastPageBtn.onclick = () => goToPage(totalPages);
+          pageNumbers.appendChild(lastPageBtn);
+        }
+      }
+
+      if (prevBtn) {
+        prevBtn.disabled = currentProductPage === 1;
+      }
+      if (nextBtn) {
+        nextBtn.disabled = currentProductPage === totalPages;
+      }
+    }
+
+    function goToPage(page) {
+      currentProductPage = page;
+      displayProducts();
+    }
+
+    function nextPage() {
+      if (currentProductPage < Math.ceil(products.length / itemsPerPage)) {
+        currentProductPage++;
+        displayProducts();
+      }
+    }
+
+    function previousPage() {
+      if (currentProductPage > 1) {
+        currentProductPage--;
+        displayProducts();
+      }
+    }
+
+    
+    function resetToFirstPage() {
+      currentProductPage = 1;
     }
   </script>
 </body>
